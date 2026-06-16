@@ -23,6 +23,7 @@
 
 import 'package:collection/collection.dart';
 
+import '../../../ast/nodes/cr.dart';
 import '../../../ast/nodes/equation_array.dart';
 import '../../../ast/nodes/left_right.dart';
 import '../../../ast/nodes/matrix.dart';
@@ -35,7 +36,6 @@ import '../../../ast/style.dart';
 import '../../../ast/syntax_tree.dart';
 import '../../../ast/types.dart';
 import '../define_environment.dart';
-import '../functions/katex_base.dart';
 import '../macros.dart';
 import '../parse_error.dart';
 import '../parser.dart';
