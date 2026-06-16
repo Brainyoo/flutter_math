@@ -232,4 +232,30 @@ mixin SelectionManagerMixin<T extends StatefulWidget> on State<T>
       );
     }
   }
+
+  // The equation is laid out at its intrinsic size and is not independently
+  // scrollable, so there is nothing to bring into view. Newer Flutter versions
+  // invoke this [TextSelectionDelegate] method on handle drag and long press,
+  // so it must have a concrete (no-op) implementation rather than falling
+  // through to [noSuchMethod].
+  @override
+  void bringIntoView(TextPosition position) {}
+
+  // Selects the whole equation. Newer Flutter versions trigger the toolbar's
+  // "Select all" action through this [TextSelectionDelegate] method instead of
+  // assigning to [textEditingValue], so it needs a concrete implementation.
+  @override
+  void selectAll(SelectionChangedCause cause) {
+    // Pass [ExtraSelectionChangedCause.handle] so the existing overlay (and its
+    // toolbar) is updated in place rather than torn down and rebuilt without a
+    // toolbar. This mirrors the original select-all path via [textEditingValue].
+    handleSelectionChanged(
+      TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.ast.greenRoot.capturedCursor - 1,
+      ),
+      cause,
+      ExtraSelectionChangedCause.handle,
+    );
+  }
 }
