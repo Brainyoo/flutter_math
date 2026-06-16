@@ -1,3 +1,4 @@
+import 'nodes/cr.dart';
 import 'nodes/space.dart';
 
 import 'syntax_tree.dart';
@@ -62,7 +63,11 @@ extension EquationRowNodeTexStyleBreakExt on EquationRowNode {
         }
       }
 
-      if (child.rightType == AtomType.bin) {
+      if (child is CrNode) {
+        // Manual line break (\\, \cr, \newline): a mandatory break.
+        breakIndices.add(i);
+        penalties.add(-10000);
+      } else if (child.rightType == AtomType.bin) {
         breakIndices.add(i);
         penalties.add(binOpPenalty);
       } else if (child.rightType == AtomType.rel) {
