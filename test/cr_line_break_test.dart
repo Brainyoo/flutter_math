@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/ast.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helper.dart';
@@ -91,6 +93,60 @@ void main() {
       expect(r.lines.length, 1);
       expect(r.lines[0].children, isEmpty);
       expect(r.gaps, isEmpty);
+    });
+  });
+
+  group('Math auto-split rendering', () {
+    testWidgets('\\\\ renders as a left-aligned Column', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: Center(child: Math.tex(r'a \\ b'))),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Column), findsOneWidget);
+      final column = tester.widget<Column>(find.byType(Column));
+      expect(column.crossAxisAlignment, CrossAxisAlignment.start);
+    });
+
+    testWidgets('expression without \\\\ does not produce a Column',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: Center(child: Math.tex(r'a + b'))),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Column), findsNothing);
+    });
+
+    testWidgets(r'\\[1em] gap adds rendered height', (tester) async {
+      Future<double> heightOf(String tex) async {
+        final key = GlobalKey();
+        await tester.pumpWidget(
+          MaterialApp(home: Center(child: Math.tex(tex, key: key))),
+        );
+        await tester.pumpAndSettle();
+        return tester.getSize(find.byKey(key)).height;
+      }
+
+      final noGap = await heightOf(r'a \\ b');
+      final withGap = await heightOf(r'a \\[1em] b');
+      expect(withGap, greaterThan(noGap));
+    });
+
+    testWidgets('empty middle line keeps real height', (tester) async {
+      Future<double> heightOf(String tex) async {
+        final key = GlobalKey();
+        await tester.pumpWidget(
+          MaterialApp(home: Center(child: Math.tex(tex, key: key))),
+        );
+        await tester.pumpAndSettle();
+        return tester.getSize(find.byKey(key)).height;
+      }
+
+      final twoLines = await heightOf(r'a \\ b');
+      final withEmptyMiddle = await heightOf(r'a \\\\ b');
+      // The extra (empty) middle line must add height, not collapse to 0.
+      expect(withEmptyMiddle, greaterThan(twoLines));
     });
   });
 }

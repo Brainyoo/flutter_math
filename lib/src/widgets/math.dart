@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../ast/options.dart';
 import '../ast/style.dart';
+import '../ast/nodes/cr.dart';
 import '../ast/syntax_tree.dart';
 import '../ast/tex_break.dart';
 import '../parser/tex/parse_error.dart';
@@ -198,7 +199,37 @@ class Math extends StatelessWidget {
     Widget child;
 
     try {
-      child = ast!.buildWidget(options);
+      final row = ast!.greenRoot;
+      if (row.flattenedChildList.any((node) => node is CrNode)) {
+        // Top-level manual line breaks: lay the lines out vertically,
+        // left-aligned (see design doc + KaTeX cr.ts).
+        final split = row.splitAtNewlines();
+        final columnChildren = <Widget>[];
+        for (var i = 0; i < split.lines.length; i++) {
+          final line = split.lines[i];
+          columnChildren.add(
+            line.children.isEmpty
+                // An empty Line collapses to height 0 (line.dart:96). Give a
+                // blank line one line's height; options.fontSize is the
+                // package's preferred line height (selectable.dart:553).
+                ? SizedBox(height: options.fontSize)
+                : SyntaxTree(greenRoot: line).buildWidget(options),
+          );
+          if (i < split.gaps.length) {
+            final gap = split.gaps[i].toLpUnder(options);
+            if (gap > 0) {
+              columnChildren.add(SizedBox(height: gap));
+            }
+          }
+        }
+        child = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: columnChildren,
+        );
+      } else {
+        child = ast!.buildWidget(options);
+      }
     } on BuildException catch (e) {
       return onErrorFallback(e);
     } on Object catch (e) {
