@@ -1,4 +1,4 @@
-import 'package:flutter_math_fork/src/ast/tex_break.dart';
+import 'package:flutter_math_fork/ast.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helper.dart';
@@ -41,6 +41,56 @@ void main() {
     test('texBreak does not split plain expression', () {
       final result = getParsed(r'a b').texBreak();
       expect(result.parts.length, 1);
+    });
+  });
+
+  group('splitAtNewlines', () {
+    test('a \\\\ b -> 2 non-empty lines', () {
+      final r = getParsed(r'a \\ b').splitAtNewlines();
+      expect(r.lines.length, 2);
+      expect(r.lines[0].children, isNotEmpty);
+      expect(r.lines[1].children, isNotEmpty);
+      expect(r.gaps.length, 1);
+    });
+
+    test('trailing \\\\ drops the empty last line', () {
+      final r = getParsed(r'a \\ b \\').splitAtNewlines();
+      expect(r.lines.length, 2);
+      expect(r.gaps.length, 1);
+    });
+
+    test('leading \\\\ keeps the empty first line', () {
+      final r = getParsed(r'\\ a').splitAtNewlines();
+      expect(r.lines.length, 2);
+      expect(r.lines[0].children, isEmpty);
+      expect(r.lines[1].children, isNotEmpty);
+    });
+
+    test('a \\\\\\\\ b keeps the empty middle line', () {
+      final r = getParsed(r'a \\\\ b').splitAtNewlines();
+      expect(r.lines.length, 3);
+      expect(r.lines[1].children, isEmpty);
+    });
+
+    test('expression without \\\\ yields a single line', () {
+      final r = getParsed(r'a + b').splitAtNewlines();
+      expect(r.lines.length, 1);
+      expect(r.gaps, isEmpty);
+    });
+
+    test('\\\\[1em] records a non-zero gap', () {
+      final r = getParsed(r'a \\[1em] b').splitAtNewlines();
+      expect(r.lines.length, 2);
+      expect(r.gaps.length, 1);
+      expect(r.gaps[0].value, 1);
+      expect(r.gaps[0].unit, Unit.em);
+    });
+
+    test('lone \\\\ yields one empty line and no gaps', () {
+      final r = getParsed(r'\\').splitAtNewlines();
+      expect(r.lines.length, 1);
+      expect(r.lines[0].children, isEmpty);
+      expect(r.gaps, isEmpty);
     });
   });
 }
