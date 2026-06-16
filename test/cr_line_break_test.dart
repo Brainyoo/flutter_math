@@ -21,6 +21,15 @@ void main() {
       expect(r'{a \\ b}', toBuild);
     });
 
+    testWidgets('SelectableMath with \\\\ builds (single-line, no crash)',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: Center(child: SelectableMath.tex(r'a \\ b'))),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
     test('environments with \\\\ still build', () {
       expect(r'\begin{matrix} a & b \\ c & d \end{matrix}', toBuild);
       expect(r'\begin{aligned} a &= b \\ c &= d \end{aligned}', toBuild);
@@ -131,6 +140,14 @@ void main() {
       final noGap = await heightOf(r'a \\ b');
       final withGap = await heightOf(r'a \\[1em] b');
       expect(withGap, greaterThan(noGap));
+    });
+
+    testWidgets('\\newline also renders as a Column', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: Center(child: Math.tex(r'a \newline b'))),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Column), findsOneWidget);
     });
 
     testWidgets('empty middle line keeps real height', (tester) async {
