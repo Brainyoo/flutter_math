@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../ast/style.dart';
+import '../ast/tex_break.dart';
 import '../parser/tex/settings.dart';
 import 'math.dart';
 import 'math_wrap.dart';
@@ -22,53 +23,83 @@ import 'math_wrap.dart';
 /// want a content-sized, centreable block and there are no unbreakable wide
 /// elements; use [MathFit] when a line might be too wide to break. Needs a
 /// bounded width.
-class MathFit extends StatelessWidget {
-  /// The underlying equation whose break points drive the layout.
-  final Math math;
+class MathFit extends StatefulWidget {
+  final String expression;
+  final TextStyle? textStyle;
+  final MathStyle mathStyle;
+  final OnErrorFallback onErrorFallback;
+  final TexParserSettings settings;
+  final double? textScaleFactor;
 
   /// Vertical alignment of the pieces within one (soft-wrapped) run.
   final WrapCrossAlignment crossAxisAlignment;
 
-  const MathFit({
+  const MathFit.tex(
+    this.expression, {
     Key? key,
-    required this.math,
+    this.textStyle,
+    this.mathStyle = MathStyle.display,
+    this.onErrorFallback = Math.defaultOnErrorFallback,
+    this.settings = const TexParserSettings(),
+    this.textScaleFactor,
     this.crossAxisAlignment = WrapCrossAlignment.center,
   }) : super(key: key);
 
-  /// Builds a [MathFit] from a TeX string. Mirrors [Math.tex].
-  factory MathFit.tex(
-    String expression, {
-    Key? key,
-    TextStyle? textStyle,
-    MathStyle mathStyle = MathStyle.display,
-    OnErrorFallback onErrorFallback = Math.defaultOnErrorFallback,
-    TexParserSettings settings = const TexParserSettings(),
-    double? textScaleFactor,
-    WrapCrossAlignment crossAxisAlignment = WrapCrossAlignment.center,
-  }) =>
-      MathFit(
-        key: key,
-        crossAxisAlignment: crossAxisAlignment,
-        math: Math.tex(
-          expression,
-          textStyle: textStyle,
-          mathStyle: mathStyle,
-          onErrorFallback: onErrorFallback,
-          settings: settings,
-          textScaleFactor: textScaleFactor,
-        ),
-      );
+  /// Number of times any [MathFit] recomputed its break result. For tests only.
+  @visibleForTesting
+  static int debugRecomputeCount = 0;
+
+  @override
+  State<MathFit> createState() => _MathFitState();
+}
+
+class _MathFitState extends State<MathFit> {
+  late BreakResult<Math> _breakResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _recompute();
+  }
+
+  @override
+  void didUpdateWidget(covariant MathFit oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_inputsChanged(oldWidget)) {
+      _recompute();
+    }
+  }
+
+  bool _inputsChanged(MathFit oldWidget) =>
+      widget.expression != oldWidget.expression ||
+      widget.textStyle != oldWidget.textStyle ||
+      widget.mathStyle != oldWidget.mathStyle ||
+      widget.settings != oldWidget.settings ||
+      widget.textScaleFactor != oldWidget.textScaleFactor;
+
+  void _recompute() {
+    MathFit.debugRecomputeCount++;
+    _breakResult = Math
+        .tex(
+          widget.expression,
+          textStyle: widget.textStyle,
+          mathStyle: widget.mathStyle,
+          onErrorFallback: widget.onErrorFallback,
+          settings: widget.settings,
+          textScaleFactor: widget.textScaleFactor,
+        )
+        .texBreak();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final breakResult = math.texBreak();
-    // Group pieces into lines, splitting at forced (`\\`) breaks.
+    // Group the cached pieces into lines, splitting at forced (`\\`) breaks.
     final lines = <List<Widget>>[<Widget>[]];
-    for (var i = 0; i < breakResult.parts.length; i++) {
-      lines.last.add(breakResult.parts[i]);
-      final forced = i < breakResult.penalties.length &&
-          breakResult.penalties[i] <= MathWrap.forcedBreakPenalty;
-      if (forced && i < breakResult.parts.length - 1) {
+    for (var i = 0; i < _breakResult.parts.length; i++) {
+      lines.last.add(_breakResult.parts[i]);
+      final forced = i < _breakResult.penalties.length &&
+          _breakResult.penalties[i] <= MathWrap.forcedBreakPenalty;
+      if (forced && i < _breakResult.parts.length - 1) {
         lines.add(<Widget>[]);
       }
     }
@@ -84,7 +115,7 @@ class MathFit extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: _WrapOrRow(
                   availableWidth: availableWidth,
-                  crossAxisAlignment: crossAxisAlignment,
+                  crossAxisAlignment: widget.crossAxisAlignment,
                   children: line,
                 ),
               ),

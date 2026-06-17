@@ -60,4 +60,45 @@ void main() {
     // symbol per line), NOT stretch to the full available width.
     expect(tester.getSize(find.byKey(key)).width, lessThan(100));
   });
+
+  testWidgets('memoizes the break result across rebuilds with same expression',
+      (tester) async {
+    MathWrap.debugRecomputeCount = 0;
+    final notifier = ValueNotifier<int>(0);
+    addTearDown(notifier.dispose);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ValueListenableBuilder<int>(
+          valueListenable: notifier,
+          builder: (_, __, ___) => MathWrap.tex(r'a + b \\ c + d'),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(MathWrap.debugRecomputeCount, 1);
+
+    notifier.value = 1; // forces a rebuild of MathWrap with the same expression
+    await tester.pumpAndSettle();
+    expect(MathWrap.debugRecomputeCount, 1); // not recomputed
+  });
+
+  testWidgets('recomputes when the expression changes', (tester) async {
+    MathWrap.debugRecomputeCount = 0;
+    final expr = ValueNotifier<String>(r'a + b');
+    addTearDown(expr.dispose);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ValueListenableBuilder<String>(
+          valueListenable: expr,
+          builder: (_, value, __) => MathWrap.tex(value),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(MathWrap.debugRecomputeCount, 1);
+
+    expr.value = r'c + d';
+    await tester.pumpAndSettle();
+    expect(MathWrap.debugRecomputeCount, 2); // recomputed for the new expression
+  });
 }
