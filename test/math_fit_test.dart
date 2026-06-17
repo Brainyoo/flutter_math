@@ -111,4 +111,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(MathFit.debugRecomputeCount, 2); // recomputed for the new expression
   });
+
+  testWidgets('an over-wide line is one row, not wrapped (so only it scrolls)',
+      (tester) async {
+    // A wide fraction (one unbreakable part far wider than the box) followed by
+    // small terms. The whole line must collapse to a single (scrolling) row, so
+    // it is no taller than the fraction alone — the small terms must NOT wrap to
+    // extra rows underneath.
+    const wide = r'\frac{aaaaaaaaaaaaaaaaaaaaaaaa}{b} + c + d + e + f';
+    const fracOnly = r'\frac{aaaaaaaaaaaaaaaaaaaaaaaa}{b}';
+    final withTerms = await heightOf(tester, MathFit.tex(wide), 100);
+    final fracAlone = await heightOf(tester, MathFit.tex(fracOnly), 100);
+    expect(withTerms, moreOrLessEquals(fracAlone, epsilon: 1.0));
+  });
 }
