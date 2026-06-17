@@ -128,14 +128,8 @@ class _MathFitState extends State<MathFit> {
 
 /// Greedy horizontal wrap that wraps to [availableWidth] (passed explicitly,
 /// because inside a horizontal scroll view the incoming constraints are
-/// unbounded).
-///
-/// Normally children are greedy-filled into rows up to [availableWidth]. When
-/// ANY child is wider than [availableWidth] (an unbreakable element such as a
-/// large fraction or matrix), ALL children are placed on a SINGLE row instead.
-/// That row overflows and the enclosing horizontal scroll view scrolls as a
-/// unit. This prevents fitting soft-wrapped rows from sharing the scroll offset
-/// of the over-wide row and being dragged off-screen.
+/// unbounded). A single child wider than [availableWidth] gets its own row that
+/// overflows — the enclosing horizontal scroll view then scrolls.
 class _WrapOrRow extends MultiChildRenderObjectWidget {
   final double availableWidth;
   final WrapCrossAlignment crossAxisAlignment;
@@ -223,18 +217,10 @@ class _RenderWrapOrRow extends RenderBox
       rowHeight = 0.0;
     }
 
-    // If a single child is wider than the available width, the line can't wrap
-    // sensibly: lay it all on one row so it scrolls as a unit (otherwise the
-    // fitting rows would share the scroll offset of the over-wide row).
-    final hasUnbreakableOverflow =
-        sizes.values.any((s) => s.width > _availableWidth);
-
     child = firstChild;
     while (child != null) {
       final s = sizes[child]!;
-      if (!hasUnbreakableOverflow &&
-          row.isNotEmpty &&
-          rowWidth + s.width > _availableWidth) {
+      if (row.isNotEmpty && rowWidth + s.width > _availableWidth) {
         closeRow();
       }
       row.add(child);
