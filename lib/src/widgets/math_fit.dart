@@ -89,16 +89,14 @@ class _MathFitState extends State<MathFit> {
 
   void _recompute() {
     MathFit.debugRecomputeCount++;
-    _breakResult = Math
-        .tex(
-          widget.expression,
-          textStyle: widget.textStyle,
-          mathStyle: widget.mathStyle,
-          onErrorFallback: widget.onErrorFallback,
-          settings: widget.settings,
-          textScaleFactor: widget.textScaleFactor,
-        )
-        .texBreak();
+    _breakResult = Math.tex(
+      widget.expression,
+      textStyle: widget.textStyle,
+      mathStyle: widget.mathStyle,
+      onErrorFallback: widget.onErrorFallback,
+      settings: widget.settings,
+      textScaleFactor: widget.textScaleFactor,
+    ).texBreak();
   }
 
   @override
@@ -271,8 +269,7 @@ class _RenderWrapOrRow extends RenderBox
     }
     if (row.isNotEmpty) closeRow();
 
-    final totalWidth =
-        rowWidths.isEmpty ? 0.0 : rowWidths.reduce(math.max);
+    final totalWidth = rowWidths.isEmpty ? 0.0 : rowWidths.reduce(math.max);
     final totalHeight = rowHeights.fold<double>(0.0, (a, b) => a + b) +
         (rows.isEmpty ? 0.0 : _runSpacing * (rows.length - 1));
     size = constraints.constrain(Size(totalWidth, totalHeight));
@@ -355,7 +352,9 @@ class _ScrollFadeState extends State<_ScrollFade> {
     final fadeLeft = hasClients && _controller.position.extentBefore > 0;
     final fadeRight = hasClients && _controller.position.extentAfter > 0;
 
-    return NotificationListener<ScrollMetricsNotification>(
+    // Clip to the exact bounds so no sub-pixel edge can escape the fade.
+    return ClipRect(
+        child: NotificationListener<ScrollMetricsNotification>(
       onNotification: (_) {
         // Metrics changed (relayout/resize) — recompute after this frame to
         // avoid setState during layout.
@@ -389,6 +388,6 @@ class _ScrollFadeState extends State<_ScrollFade> {
           child: widget.child,
         ),
       ),
-    );
+    ));
   }
 }
