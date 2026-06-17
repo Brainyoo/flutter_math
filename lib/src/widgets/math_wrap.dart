@@ -27,6 +27,10 @@ class MathWrap extends StatefulWidget {
   /// Vertical alignment of the pieces within one line.
   final WrapCrossAlignment crossAxisAlignment;
 
+  /// Vertical gap inserted between stacked lines (both hard `\\` breaks and
+  /// soft-wrapped rows).
+  final double lineSpacing;
+
   const MathWrap.tex(
     this.expression, {
     Key? key,
@@ -36,6 +40,7 @@ class MathWrap extends StatefulWidget {
     this.settings = const TexParserSettings(),
     this.textScaleFactor,
     this.crossAxisAlignment = WrapCrossAlignment.center,
+    this.lineSpacing = 0.0,
   }) : super(key: key);
 
   /// Penalty that [Math.texBreak] assigns to a manual `\\` / `\cr` / `\newline`.
@@ -100,12 +105,22 @@ class _MathWrapState extends State<MathWrap> {
         lines.add(<Widget>[]);
       }
     }
+    final lineWidgets = <Widget>[
+      for (final line in lines)
+        Wrap(
+          crossAxisAlignment: widget.crossAxisAlignment,
+          runSpacing: widget.lineSpacing,
+          children: line,
+        ),
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final line in lines)
-          Wrap(crossAxisAlignment: widget.crossAxisAlignment, children: line),
+        for (var i = 0; i < lineWidgets.length; i++) ...[
+          if (i > 0) SizedBox(height: widget.lineSpacing),
+          lineWidgets[i],
+        ],
       ],
     );
   }

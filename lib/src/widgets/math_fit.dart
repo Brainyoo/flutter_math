@@ -34,6 +34,10 @@ class MathFit extends StatefulWidget {
   /// Vertical alignment of the pieces within one (soft-wrapped) run.
   final WrapCrossAlignment crossAxisAlignment;
 
+  /// Vertical gap inserted between stacked lines (both hard `\\` breaks and
+  /// soft-wrapped rows).
+  final double lineSpacing;
+
   const MathFit.tex(
     this.expression, {
     Key? key,
@@ -43,6 +47,7 @@ class MathFit extends StatefulWidget {
     this.settings = const TexParserSettings(),
     this.textScaleFactor,
     this.crossAxisAlignment = WrapCrossAlignment.center,
+    this.lineSpacing = 0.0,
   }) : super(key: key);
 
   /// Number of times any [MathFit] recomputed its break result. For tests only.
@@ -106,19 +111,26 @@ class _MathFitState extends State<MathFit> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
+        final lineWidgets = <Widget>[
+          for (final line in lines)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: _WrapOrRow(
+                availableWidth: availableWidth,
+                crossAxisAlignment: widget.crossAxisAlignment,
+                runSpacing: widget.lineSpacing,
+                children: line,
+              ),
+            ),
+        ];
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final line in lines)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: _WrapOrRow(
-                  availableWidth: availableWidth,
-                  crossAxisAlignment: widget.crossAxisAlignment,
-                  children: line,
-                ),
-              ),
+            for (var i = 0; i < lineWidgets.length; i++) ...[
+              if (i > 0) SizedBox(height: widget.lineSpacing),
+              lineWidgets[i],
+            ],
           ],
         );
       },
@@ -133,24 +145,28 @@ class _MathFitState extends State<MathFit> {
 class _WrapOrRow extends MultiChildRenderObjectWidget {
   final double availableWidth;
   final WrapCrossAlignment crossAxisAlignment;
+  final double runSpacing;
 
   const _WrapOrRow({
     required this.availableWidth,
     required this.crossAxisAlignment,
     required List<Widget> children,
+    this.runSpacing = 0.0,
   }) : super(children: children);
 
   @override
   _RenderWrapOrRow createRenderObject(BuildContext context) => _RenderWrapOrRow(
         availableWidth: availableWidth,
         crossAxisAlignment: crossAxisAlignment,
+        runSpacing: runSpacing,
       );
 
   @override
   void updateRenderObject(BuildContext context, _RenderWrapOrRow renderObject) {
     renderObject
       ..availableWidth = availableWidth
-      ..crossAxisAlignment = crossAxisAlignment;
+      ..crossAxisAlignment = crossAxisAlignment
+      ..runSpacing = runSpacing;
   }
 }
 
@@ -163,8 +179,10 @@ class _RenderWrapOrRow extends RenderBox
   _RenderWrapOrRow({
     required double availableWidth,
     required WrapCrossAlignment crossAxisAlignment,
+    double runSpacing = 0.0,
   })  : _availableWidth = availableWidth,
-        _crossAxisAlignment = crossAxisAlignment;
+        _crossAxisAlignment = crossAxisAlignment,
+        _runSpacing = runSpacing;
 
   double _availableWidth;
   set availableWidth(double value) {
@@ -178,6 +196,14 @@ class _RenderWrapOrRow extends RenderBox
   set crossAxisAlignment(WrapCrossAlignment value) {
     if (_crossAxisAlignment != value) {
       _crossAxisAlignment = value;
+      markNeedsLayout();
+    }
+  }
+
+  double _runSpacing;
+  set runSpacing(double value) {
+    if (_runSpacing != value) {
+      _runSpacing = value;
       markNeedsLayout();
     }
   }
@@ -232,7 +258,8 @@ class _RenderWrapOrRow extends RenderBox
 
     final totalWidth =
         rowWidths.isEmpty ? 0.0 : rowWidths.reduce(math.max);
-    final totalHeight = rowHeights.fold<double>(0.0, (a, b) => a + b);
+    final totalHeight = rowHeights.fold<double>(0.0, (a, b) => a + b) +
+        (rows.isEmpty ? 0.0 : _runSpacing * (rows.length - 1));
     size = constraints.constrain(Size(totalWidth, totalHeight));
 
     // Position children row by row.
@@ -255,6 +282,7 @@ class _RenderWrapOrRow extends RenderBox
         x += cs.width;
       }
       y += h;
+      if (r < rows.length - 1) y += _runSpacing;
     }
   }
 

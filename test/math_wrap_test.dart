@@ -101,4 +101,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(MathWrap.debugRecomputeCount, 2); // recomputed for the new expression
   });
+
+  testWidgets('lineSpacing adds vertical gap between hard-break lines',
+      (tester) async {
+    final tight = await heightOf(tester, MathWrap.tex(r'a \\ b'), 1000);
+    final spaced =
+        await heightOf(tester, MathWrap.tex(r'a \\ b', lineSpacing: 20), 1000);
+    // Two lines -> exactly one gap of 20px between them.
+    expect(spaced, moreOrLessEquals(tight + 20, epsilon: 0.5));
+  });
 }
