@@ -39,4 +39,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('shrink-wraps to content width even with a manual break',
+      (tester) async {
+    final key = GlobalKey();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          // MathWrap is placed directly under a loose-constraint Align so the
+          // Column it builds can report its natural (content) width.  With a
+          // manual \\, each line has a single short symbol, so the widget must
+          // be far narrower than the 800 px test viewport.
+          child: MathWrap.tex(r'a \\ b', key: key),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    // With a manual break, the block must size to its content (one short
+    // symbol per line), NOT stretch to the full available width.
+    expect(tester.getSize(find.byKey(key)).width, lessThan(100));
+  });
 }

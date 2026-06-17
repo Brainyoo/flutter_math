@@ -57,16 +57,27 @@ class MathWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final breakResult = math.texBreak();
-    final children = <Widget>[];
+    // Group the pieces into lines, splitting at forced (`\\`) breaks. Each line
+    // is its own [Wrap], so it soft-wraps to the available width; the lines are
+    // stacked in a [Column]. Unlike a single [Wrap] with a full-width spacer,
+    // this sizes to the widest line (shrink-wraps) instead of always filling the
+    // available width — so the block can be centred or laid out freely.
+    final lines = <List<Widget>>[<Widget>[]];
     for (var i = 0; i < breakResult.parts.length; i++) {
-      children.add(breakResult.parts[i]);
-      if (i < breakResult.penalties.length &&
-          breakResult.penalties[i] <= forcedBreakPenalty) {
-        // A full-width, zero-height spacer fills the rest of the current run,
-        // forcing the next piece onto a new line — i.e. a hard `\\` break.
-        children.add(const SizedBox(width: double.infinity, height: 0));
+      lines.last.add(breakResult.parts[i]);
+      final isForcedBreak = i < breakResult.penalties.length &&
+          breakResult.penalties[i] <= forcedBreakPenalty;
+      if (isForcedBreak && i < breakResult.parts.length - 1) {
+        lines.add(<Widget>[]);
       }
     }
-    return Wrap(crossAxisAlignment: crossAxisAlignment, children: children);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          Wrap(crossAxisAlignment: crossAxisAlignment, children: line),
+      ],
+    );
   }
 }
