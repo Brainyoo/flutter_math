@@ -38,6 +38,10 @@ class MathFit extends StatefulWidget {
   /// soft-wrapped rows).
   final double lineSpacing;
 
+  /// When true, scrollable lines fade out at the edge that has more content,
+  /// to signal horizontal scrollability.
+  final bool scrollFade;
+
   const MathFit.tex(
     this.expression, {
     Key? key,
@@ -48,6 +52,7 @@ class MathFit extends StatefulWidget {
     this.textScaleFactor,
     this.crossAxisAlignment = WrapCrossAlignment.center,
     this.lineSpacing = 0.0,
+    this.scrollFade = false,
   }) : super(key: key);
 
   /// Number of times any [MathFit] recomputed its break result. For tests only.
@@ -113,15 +118,25 @@ class _MathFitState extends State<MathFit> {
         final availableWidth = constraints.maxWidth;
         final lineWidgets = <Widget>[
           for (final line in lines)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: _WrapOrRow(
-                availableWidth: availableWidth,
-                crossAxisAlignment: widget.crossAxisAlignment,
-                runSpacing: widget.lineSpacing,
-                children: line,
+            if (widget.scrollFade)
+              _ScrollFade(
+                child: _WrapOrRow(
+                  availableWidth: availableWidth,
+                  crossAxisAlignment: widget.crossAxisAlignment,
+                  runSpacing: widget.lineSpacing,
+                  children: line,
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: _WrapOrRow(
+                  availableWidth: availableWidth,
+                  crossAxisAlignment: widget.crossAxisAlignment,
+                  runSpacing: widget.lineSpacing,
+                  children: line,
+                ),
               ),
-            ),
         ];
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -293,4 +308,87 @@ class _RenderWrapOrRow extends RenderBox
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
       defaultHitTestChildren(result, position: position);
+}
+
+/// Fades the horizontally-scrollable edges of [child] to signal scrollability:
+/// the right edge fades while more content remains, the left edge fades once
+/// scrolled. No fade when the content fits.
+class _ScrollFade extends StatefulWidget {
+  final Widget child;
+
+  const _ScrollFade({required this.child});
+
+  @override
+  State<_ScrollFade> createState() => _ScrollFadeState();
+}
+
+class _ScrollFadeState extends State<_ScrollFade> {
+  static const double _fadeWidth = 24.0;
+  static const Color _opaque = Color(0xFFFFFFFF);
+  static const Color _clear = Color(0x00000000);
+
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_refresh);
+    // After the first layout the scroll metrics exist; recompute so an initial
+    // right-edge fade shows when the content overflows.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_refresh);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasClients = _controller.hasClients;
+    final fadeLeft = hasClients && _controller.position.extentBefore > 0;
+    final fadeRight = hasClients && _controller.position.extentAfter > 0;
+
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        // Metrics changed (relayout/resize) — recompute after this frame to
+        // avoid setState during layout.
+        WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+        return false;
+      },
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (Rect rect) {
+          if (!fadeLeft && !fadeRight) {
+            return const LinearGradient(colors: [_opaque, _opaque])
+                .createShader(rect);
+          }
+          final f =
+              rect.width <= 0 ? 0.0 : (_fadeWidth / rect.width).clamp(0.0, 0.5);
+          return LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              fadeLeft ? _clear : _opaque,
+              _opaque,
+              _opaque,
+              fadeRight ? _clear : _opaque,
+            ],
+            stops: [0.0, f, 1 - f, 1.0],
+          ).createShader(rect);
+        },
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
 }

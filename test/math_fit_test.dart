@@ -119,4 +119,49 @@ void main() {
         await heightOf(tester, MathFit.tex(r'a \\ b', lineSpacing: 20), 1000);
     expect(spaced, moreOrLessEquals(tight + 20, epsilon: 0.5));
   });
+
+  testWidgets('scrollFade defaults off (no ShaderMask)', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 80,
+            child: MathFit.tex(r'\frac{aaaaaaaaaaaaaaaaaaaaaaaa}{b}'),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+          of: find.byType(MathFit), matching: find.byType(ShaderMask)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('scrollFade: true fades an overflowing line and still scrolls',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 80,
+            child: MathFit.tex(r'\frac{aaaaaaaaaaaaaaaaaaaaaaaa}{b}',
+                scrollFade: true),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+          of: find.byType(MathFit), matching: find.byType(ShaderMask)),
+      findsOneWidget,
+    );
+    final state = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(state.position.maxScrollExtent, greaterThan(0));
+    expect(tester.takeException(), isNull);
+  });
 }
