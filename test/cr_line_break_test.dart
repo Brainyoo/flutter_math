@@ -150,6 +150,14 @@ void main() {
       expect(find.byType(Column), findsOneWidget);
     });
 
+    testWidgets('trailing-only \\\\ does not produce a Column', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: Center(child: Math.tex(r'a \\'))),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Column), findsNothing);
+    });
+
     testWidgets('empty middle line keeps real height', (tester) async {
       Future<double> heightOf(String tex) async {
         final key = GlobalKey();

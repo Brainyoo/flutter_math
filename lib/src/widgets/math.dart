@@ -200,10 +200,14 @@ class Math extends StatelessWidget {
 
     try {
       final row = ast!.greenRoot;
-      if (row.flattenedChildList.any((node) => node is CrNode)) {
+      final split = row.flattenedChildList.any((node) => node is CrNode)
+          ? row.splitAtNewlines()
+          : null;
+      if (split != null && split.lines.length > 1) {
         // Top-level manual line breaks: lay the lines out vertically,
-        // left-aligned (see design doc + KaTeX cr.ts).
-        final split = row.splitAtNewlines();
+        // left-aligned (see design doc + KaTeX cr.ts). Only when there is an
+        // actual multi-line split — a single-line result (e.g. a trailing
+        // `\\`, or a `texBreak` part ending in `\\`) renders normally.
         final columnChildren = <Widget>[];
         for (var i = 0; i < split.lines.length; i++) {
           final line = split.lines[i];
