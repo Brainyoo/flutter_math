@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 
 import '../ast/style.dart';
-import '../ast/tex_break.dart';
 import '../parser/tex/settings.dart';
 import 'math.dart';
+import 'multiline_math.dart';
 
 /// Renders a TeX equation that wraps across multiple lines, sizing to its
 /// content (shrink-wraps) under loose width constraints.
@@ -45,7 +45,8 @@ class MathWrap extends StatefulWidget {
 
   /// Penalty that [Math.texBreak] assigns to a manual `\\` / `\cr` / `\newline`.
   /// Anything at or below it is a forced (mandatory) break.
-  static const int forcedBreakPenalty = -10000;
+  @Deprecated('Use mathForcedBreakPenalty from multiline_math.dart instead.')
+  static const int forcedBreakPenalty = mathForcedBreakPenalty;
 
   /// Number of times any [MathWrap] recomputed its break result. For tests only.
   @visibleForTesting
@@ -55,63 +56,36 @@ class MathWrap extends StatefulWidget {
   State<MathWrap> createState() => _MathWrapState();
 }
 
-class _MathWrapState extends State<MathWrap> {
-  late BreakResult<Math> _breakResult;
+class _MathWrapState extends State<MathWrap>
+    with MathBreakStateMixin<MathWrap> {
+  @override
+  MathBreakInputs get breakInputs => MathBreakInputs(
+        expression: widget.expression,
+        textStyle: widget.textStyle,
+        mathStyle: widget.mathStyle,
+        onErrorFallback: widget.onErrorFallback,
+        settings: widget.settings,
+        textScaleFactor: widget.textScaleFactor,
+      );
 
   @override
-  void initState() {
-    super.initState();
-    _recompute();
-  }
-
-  @override
-  void didUpdateWidget(covariant MathWrap oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_inputsChanged(oldWidget)) {
-      _recompute();
-    }
-  }
-
-  bool _inputsChanged(MathWrap oldWidget) =>
-      widget.expression != oldWidget.expression ||
-      widget.textStyle != oldWidget.textStyle ||
-      widget.mathStyle != oldWidget.mathStyle ||
-      widget.settings != oldWidget.settings ||
-      widget.textScaleFactor != oldWidget.textScaleFactor;
-
-  void _recompute() {
-    MathWrap.debugRecomputeCount++;
-    _breakResult = Math
-        .tex(
-          widget.expression,
-          textStyle: widget.textStyle,
-          mathStyle: widget.mathStyle,
-          onErrorFallback: widget.onErrorFallback,
-          settings: widget.settings,
-          textScaleFactor: widget.textScaleFactor,
-        )
-        .texBreak();
-  }
+  void onRecompute() => MathWrap.debugRecomputeCount++;
 
   @override
   Widget build(BuildContext context) {
-    // Group the cached pieces into lines, splitting at forced (`\\`) breaks.
-    final lines = <List<Widget>>[<Widget>[]];
-    for (var i = 0; i < _breakResult.parts.length; i++) {
-      lines.last.add(_breakResult.parts[i]);
-      final forced = i < _breakResult.penalties.length &&
-          _breakResult.penalties[i] <= MathWrap.forcedBreakPenalty;
-      if (forced && i < _breakResult.parts.length - 1) {
-        lines.add(<Widget>[]);
-      }
-    }
     final lineWidgets = <Widget>[
-      for (final line in lines)
-        Wrap(
-          crossAxisAlignment: widget.crossAxisAlignment,
-          runSpacing: widget.lineSpacing,
-          children: line,
-        ),
+      for (final line in groupBreakResultIntoLines(breakResult))
+        if (line.isBlank)
+          SizedBox(
+            height: resolveBlankLineHeight(
+                context, widget.textStyle, widget.textScaleFactor),
+          )
+        else
+          Wrap(
+            crossAxisAlignment: widget.crossAxisAlignment,
+            runSpacing: widget.lineSpacing,
+            children: line.parts,
+          ),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,

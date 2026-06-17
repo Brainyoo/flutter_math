@@ -4,10 +4,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../ast/style.dart';
-import '../ast/tex_break.dart';
 import '../parser/tex/settings.dart';
 import 'math.dart';
 import 'math_wrap.dart';
+import 'multiline_math.dart';
 
 /// Renders a TeX equation that fits the available width as gracefully as
 /// possible:
@@ -63,66 +63,40 @@ class MathFit extends StatefulWidget {
   State<MathFit> createState() => _MathFitState();
 }
 
-class _MathFitState extends State<MathFit> {
-  late BreakResult<Math> _breakResult;
+class _MathFitState extends State<MathFit> with MathBreakStateMixin<MathFit> {
+  @override
+  MathBreakInputs get breakInputs => MathBreakInputs(
+        expression: widget.expression,
+        textStyle: widget.textStyle,
+        mathStyle: widget.mathStyle,
+        onErrorFallback: widget.onErrorFallback,
+        settings: widget.settings,
+        textScaleFactor: widget.textScaleFactor,
+      );
 
   @override
-  void initState() {
-    super.initState();
-    _recompute();
-  }
-
-  @override
-  void didUpdateWidget(covariant MathFit oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_inputsChanged(oldWidget)) {
-      _recompute();
-    }
-  }
-
-  bool _inputsChanged(MathFit oldWidget) =>
-      widget.expression != oldWidget.expression ||
-      widget.textStyle != oldWidget.textStyle ||
-      widget.mathStyle != oldWidget.mathStyle ||
-      widget.settings != oldWidget.settings ||
-      widget.textScaleFactor != oldWidget.textScaleFactor;
-
-  void _recompute() {
-    MathFit.debugRecomputeCount++;
-    _breakResult = Math.tex(
-      widget.expression,
-      textStyle: widget.textStyle,
-      mathStyle: widget.mathStyle,
-      onErrorFallback: widget.onErrorFallback,
-      settings: widget.settings,
-      textScaleFactor: widget.textScaleFactor,
-    ).texBreak();
-  }
+  void onRecompute() => MathFit.debugRecomputeCount++;
 
   @override
   Widget build(BuildContext context) {
-    // Group the cached pieces into lines, splitting at forced (`\\`) breaks.
-    final lines = <List<Widget>>[<Widget>[]];
-    for (var i = 0; i < _breakResult.parts.length; i++) {
-      lines.last.add(_breakResult.parts[i]);
-      final forced = i < _breakResult.penalties.length &&
-          _breakResult.penalties[i] <= MathWrap.forcedBreakPenalty;
-      if (forced && i < _breakResult.parts.length - 1) {
-        lines.add(<Widget>[]);
-      }
-    }
+    final lines = groupBreakResultIntoLines(breakResult);
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
         final lineWidgets = <Widget>[
           for (final line in lines)
-            if (widget.scrollFade)
+            if (line.isBlank)
+              SizedBox(
+                height: resolveBlankLineHeight(
+                    context, widget.textStyle, widget.textScaleFactor),
+              )
+            else if (widget.scrollFade)
               _ScrollFade(
                 child: _WrapOrRow(
                   availableWidth: availableWidth,
                   crossAxisAlignment: widget.crossAxisAlignment,
                   runSpacing: widget.lineSpacing,
-                  children: line,
+                  children: line.parts,
                 ),
               )
             else
@@ -132,7 +106,7 @@ class _MathFitState extends State<MathFit> {
                   availableWidth: availableWidth,
                   crossAxisAlignment: widget.crossAxisAlignment,
                   runSpacing: widget.lineSpacing,
-                  children: line,
+                  children: line.parts,
                 ),
               ),
         ];

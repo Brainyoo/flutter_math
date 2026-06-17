@@ -40,6 +40,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a blank middle line (\\\\\\\\) keeps real height', (tester) async {
+    final twoLines = await heightOf(tester, MathWrap.tex(r'a \\ b'), 1000);
+    final withEmptyMiddle =
+        await heightOf(tester, MathWrap.tex(r'a \\\\ b'), 1000);
+    // The extra (empty) middle line must add height, not collapse to 0 (it must
+    // match Math.tex, which gives a blank line one line's height).
+    expect(withEmptyMiddle, greaterThan(twoLines));
+  });
+
   testWidgets('shrink-wraps to content width even with a manual break',
       (tester) async {
     final key = GlobalKey();
