@@ -32,6 +32,13 @@ const defaultSelection = TextSelection.collapsed(offset: -1);
 /// to clipboard.
 ///
 /// See [SelectableText] as this widget aims to fully imitate its behavior.
+///
+/// Unlike [Math], this widget does not lay top-level manual line breaks
+/// (`\\`, `\cr`, `\newline`) out as separate lines: selection, hit-testing and
+/// caret mapping all rely on a single render tree spanning the whole equation,
+/// which a multi-line stack would break. Such breaks render inline as
+/// zero-width no-ops here. For multi-line output without selection, use [Math],
+/// [MathWrap] or [MathFit].
 class SelectableMath extends StatelessWidget {
   /// SelectableMath default constructor.
   ///

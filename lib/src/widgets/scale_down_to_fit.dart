@@ -14,6 +14,12 @@ import 'package:flutter/widgets.dart';
 /// `MathWrap` here would defeat its wrapping and overflow on the `\\` spacer).
 ///
 /// Needs a bounded width to measure against.
+///
+/// Does not support intrinsic sizing: it lays out via a [LayoutBuilder], which
+/// cannot answer intrinsic-dimension queries. Placing it under a parent that
+/// probes intrinsics ([IntrinsicWidth], [IntrinsicHeight], a baseline-aligned
+/// [Row], or some [Table] configurations) throws at layout time. Give it
+/// bounded constraints directly instead.
 class ScaleDownToFit extends StatelessWidget {
   /// Lower bound on the scale factor. Below this the child scrolls instead of
   /// shrinking further. Must be in (0, 1].

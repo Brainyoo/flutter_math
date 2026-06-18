@@ -23,6 +23,12 @@ import 'multiline_math.dart';
 /// want a content-sized, centreable block and there are no unbreakable wide
 /// elements; use [MathFit] when a line might be too wide to break. Needs a
 /// bounded width.
+///
+/// Does not support intrinsic sizing: it lays out via a [LayoutBuilder], which
+/// cannot answer intrinsic-dimension queries. Placing a [MathFit] under a
+/// parent that probes intrinsics — [IntrinsicWidth], [IntrinsicHeight], a
+/// baseline-aligned [Row], or some [Table] configurations — throws at layout
+/// time. Give it bounded constraints directly (e.g. a sized box) instead.
 class MathFit extends StatefulWidget {
   final String expression;
   final TextStyle? textStyle;
