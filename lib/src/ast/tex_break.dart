@@ -1,5 +1,7 @@
+import 'nodes/cr.dart';
 import 'nodes/space.dart';
 
+import 'size.dart';
 import 'syntax_tree.dart';
 
 extension SyntaxTreeTexStyleBreakExt on SyntaxTree {
@@ -62,7 +64,11 @@ extension EquationRowNodeTexStyleBreakExt on EquationRowNode {
         }
       }
 
-      if (child.rightType == AtomType.bin) {
+      if (child is CrNode) {
+        // Manual line break (\\, \cr, \newline): a mandatory break.
+        breakIndices.add(i);
+        penalties.add(-10000);
+      } else if (child.rightType == AtomType.bin) {
         breakIndices.add(i);
         penalties.add(binOpPenalty);
       } else if (child.rightType == AtomType.rel) {
@@ -102,4 +108,59 @@ class BreakResult<T> {
     required this.parts,
     required this.penalties,
   });
+}
+
+/// Result of splitting an [EquationRowNode] at its top-level [CrNode]s.
+class NewlineSplitResult {
+  /// One [EquationRowNode] per line (without the separating [CrNode]s).
+  final List<EquationRowNode> lines;
+
+  /// Extra vertical gap after each line, taken from the separating `\\[size]`.
+  ///
+  /// `gaps[i]` is the gap between `lines[i]` and `lines[i + 1]`; length is
+  /// always exactly `lines.length - 1`.
+  final List<Measurement> gaps;
+
+  const NewlineSplitResult({required this.lines, required this.gaps});
+}
+
+extension EquationRowNodeNewlineSplitExt on EquationRowNode {
+  /// Splits this row into separate lines at every top-level [CrNode].
+  ///
+  /// The `CrNode`s themselves are removed (they are separators, not content).
+  /// A single trailing empty line (from a trailing `\\`) is dropped; leading
+  /// and inner empty lines are kept as real blank lines.
+  NewlineSplitResult splitAtNewlines() {
+    final flattened = flattenedChildList;
+    final crIndices = <int>[];
+    for (var i = 0; i < flattened.length; i++) {
+      if (flattened[i] is CrNode) {
+        crIndices.add(i);
+      }
+    }
+    if (crIndices.isEmpty) {
+      return NewlineSplitResult(lines: [this], gaps: const []);
+    }
+
+    final lines = <EquationRowNode>[];
+    final gaps = <Measurement>[];
+    var pos = caretPositions.first;
+    for (final k in crIndices) {
+      // Clip up to the caret position *before* the CrNode, excluding it.
+      lines.add(clipChildrenBetween(pos, caretPositions[k]).wrapWithEquationRow());
+      gaps.add((flattened[k] as CrNode).size ?? Measurement.zero);
+      // Resume *after* the CrNode.
+      pos = caretPositions[k + 1];
+    }
+    final trailing =
+        clipChildrenBetween(pos, caretPositions.last).wrapWithEquationRow();
+    if (trailing.children.isNotEmpty) {
+      lines.add(trailing);
+    } else {
+      // Drop a single trailing empty line and its preceding gap.
+      if (gaps.isNotEmpty) gaps.removeLast();
+    }
+
+    return NewlineSplitResult(lines: lines, gaps: gaps);
+  }
 }

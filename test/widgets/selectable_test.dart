@@ -247,6 +247,11 @@ void main() {
                 'text 1',
                 key: key1,
               ),
+              // Keep the two equations apart. They are tiny, so without spacing
+              // the first one's selection handles (which have a minimum 48px
+              // interactive area) would overlap the second one and swallow the
+              // tap meant to move focus away.
+              const SizedBox(height: 100),
               SelectableMath.tex(
                 'text 2',
                 key: key2,

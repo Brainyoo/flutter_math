@@ -32,17 +32,6 @@ const _crEntries = {
   ),
 };
 
-class CrNode extends TemporaryNode {
-  final bool newLine;
-  final bool newRow;
-  final Measurement? size;
-  CrNode({
-    required this.newLine,
-    required this.newRow,
-    this.size,
-  });
-}
-
 GreenNode _crHandler(TexParser parser, FunctionContext context) {
   final size = parser.parseArgSize(optional: true);
   final newRow = context.funcName == '\\cr';

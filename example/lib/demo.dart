@@ -8,7 +8,9 @@ class DemoPage extends StatelessWidget {
         child: Container(
           constraints: BoxConstraints(maxWidth: 800),
           child: ChangeNotifierProvider(
-            create: (context) => TextEditingController(),
+            create: (context) => TextEditingController(
+                text: r'f(x) = a_0 + a_1 x + a_2 x^2 + a_3 x^3 + a_4 x^4 '
+                    r'+ a_5 x^5 + a_6 x^6 \\ g(x) = b_0 + b_1 x + b_2 x^2'),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -49,8 +51,7 @@ class DemoPage extends StatelessWidget {
                             alignment: Alignment.topCenter,
                             padding: EdgeInsets.all(10),
                             child: Consumer<TextEditingController>(
-                              builder: (context, controller, _) =>
-                                  SelectableMath.tex(
+                              builder: (context, controller, _) => MathFit.tex(
                                 controller.value.text,
                                 textStyle: TextStyle(fontSize: 22),
                               ),

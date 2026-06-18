@@ -11,4 +11,7 @@ export 'src/parser/tex/parse_error.dart';
 export 'src/parser/tex/settings.dart';
 export 'src/widgets/exception.dart';
 export 'src/widgets/math.dart';
+export 'src/widgets/math_fit.dart';
+export 'src/widgets/math_wrap.dart';
+export 'src/widgets/scale_down_to_fit.dart';
 export 'src/widgets/selectable.dart' show SelectableMath;
